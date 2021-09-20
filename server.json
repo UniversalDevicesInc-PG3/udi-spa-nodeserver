@@ -1,22 +1,26 @@
 
 {
     "name": "BalboaSpa",
-    "docs": "https://github.com/therealmysteryman/udi-balboaSpa-nodeserver/blob/master/README.md",
+    "docs": "https://github.com/UniversalDevicesInc-PG3/udi-balboaSpa-nodeserver/blob/master/README.md",
     "type": "python3",
     "executable": "spa_poly.py",
     "install": "install.sh",
     "shortPoll": "60",
     "longPoll": "600",
+	"logLevel": "INFO",
+	"customParams": {
+		"host": ""
+	},
     "description": "This Poly provides an interface between for a spa equipped with a Balboa BP system and a bwa™ Wi-Fi Module (50350).",
-    "notice": "https://github.com/therealmysteryman/udi-balboaSpa-nodeserver/blob/master/LICENSE",
+    "notice": "https://github.com/UniversalDevicesInc-PG3/udi-balboaSpa-nodeserver/blob/master/LICENSE",
     "credits": [
         {
-            "title": "SmartBlinds: A Polyglot v2 interface to SmartBlinds",
+            "title": "SPA Balboa: A Polyglot v3 interface to Balboa BP spa Wi-Fi module",
             "author": "AutomationGeek",
-            "version": "2.0.4",
-            "date": "March 21, 2021",
-            "source": "https://github.com/therealmysteryman/udi-balboaSpa-nodeserver",
-            "license": "https://github.com/therealmysteryman/udi-balboaSpa-nodeserver/blob/master/README.md"
+            "version": "3.0.0",
+            "date": "September 20, 2021",
+            "source": "https://github.com/UniversalDevicesInc-PG3/udi-balboaSpa-nodeserver",
+            "license": "https://github.com/UniversalDevicesInc-PG3/udi-balboaSpa-nodeserver/blob/master/LICENSE"
         },
 	{
             "title": "udi-poly-template-python: A Polyglot v2 Poly template",
@@ -34,5 +38,14 @@
             "source": "https://github.com/garbled1/pybalboa",
             "license": "https://github.com/garbled1/pybalboa/blob/main/LICENSE"
         }
-    ]
+    ],
+	"store": {
+		"developer": "bpaauwe@bobsplace.com",
+		"purchaseOptions": [
+			{
+				"isPerpetual": true,
+				"price": 0
+			}
+		]
+	}
 }

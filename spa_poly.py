@@ -5,7 +5,7 @@ This is a NodeServer for Balboa Spa written by automationgeek (Jean-Francois Tre
 based on the NodeServer template for Polyglot v2 written in Python2/3 by Einstein.42 (James Milne) milne.james@gmail.com
 """
 
-import polyinterface
+import udi_interface
 import pybalboa
 import hashlib
 import asyncio
@@ -14,7 +14,8 @@ import json
 import sys
 from copy import deepcopy
 
-LOGGER = polyinterface.LOGGER
+LOGGER = udi_interface.LOGGER
+Custom = udi_interface.Custom
 SERVERDATA = json.load(open('server.json'))
 VERSION = SERVERDATA['credits'][0]['version']
 
@@ -29,47 +30,56 @@ def get_profile_info(logger):
     f.close()
     return { 'version': pv }
 
-class Controller(polyinterface.Controller):
+class Controller(udi_interface.Node):
 
-    def __init__(self, polyglot):
-        super(Controller, self).__init__(polyglot)
+    def __init__(self, polyglot, primary, address, name):
+        super(Controller, self).__init__(polyglot, primary, address, name)
+        self.poly = polyglot
         self.name = 'BalboaSpa'
         self.initialized = False
         self.queryON = False
         self.host = ""
         self.hb = 0
+
+        self.CustomParams = Custom(polyglot, 'customparams')
+
+        polyglot.subscribe(polyglot.START, self.start, address)
+        polyglot.subscribe(polyglot.CUSTOMPARAMS, self.parameterHandler)
+        polyglot.subscribe(polyglot.POLL, self.poll)
         
-    def start(self):
-        LOGGER.info('Started Balboa SPA for v2 NodeServer version %s', str(VERSION))
-        self.setDriver('ST', 1)
+        polyglot.ready()
+        polyglot.addNode(self)
+
+    def parameterHandler(self, params):
+        self.poly.Notices.clear()
         try:
-            if 'host' in self.polyConfig['customParams']:
-                self.host = self.polyConfig['customParams']['host']
+            if 'host' in params:
+                self.host = params['host']
             else:
                 self.host = ""
             
             if self.host == "" :
                 LOGGER.error('SPA Balboa requires host parameter to be specified in custom configuration.')
+                self.poly.Notices['host'] = 'Please enter the Host/IP address'
                 return False
             else:
-                self.check_profile()
                 self.discover()
 
         except Exception as ex:
             LOGGER.error('Error starting Balboa NodeServer: %s', str(ex))
-           
-    def shortPoll(self):
-        self.setDriver('ST', 1)
-        for node in self.nodes:
-            if  self.nodes[node].queryON == True :
-                self.nodes[node].update()
 
-    def longPoll(self):
-        self.heartbeat()
+    def start(self):
+        LOGGER.info('Started Balboa SPA for v2 NodeServer version %s', str(VERSION))
+        self.poly.updateProfile()
+        self.poly.setCustomParamsDoc()
+           
+    def poll(self, pollflag):
+        if 'longPoll' in pollflag:
+            self.heartbeat()
     
     def query(self):
-        for node in self.nodes:
-            self.nodes[node].reportDrivers()
+        for node in self.poly.nodes():
+            node.reportDrivers()
     
     def heartbeat(self):
         LOGGER.debug('heartbeat: hb={}'.format(self.hb))
@@ -81,46 +91,27 @@ class Controller(polyinterface.Controller):
             self.hb = 0
 
     def discover(self, *args, **kwargs):
-        self.addNode(Spa(self,self.address,"spa","spa",self.host ))
+        if not self.poly.getNode('spa'):
+            self.poly.addNode(Spa(self.poly,self.address,"spa","spa",self.host ))
     
     def delete(self):
         LOGGER.info('Deleting Balboa Spa')
 
-    def check_profile(self):
-        self.profile_info = get_profile_info(LOGGER)
-        # Set Default profile version if not Found
-        cdata = deepcopy(self.polyConfig['customData'])
-        LOGGER.info('check_profile: profile_info={0} customData={1}'.format(self.profile_info,cdata))
-        if not 'profile_info' in cdata:
-            cdata['profile_info'] = { 'version': 0 }
-        if self.profile_info['version'] == cdata['profile_info']['version']:
-            self.update_profile = False
-        else:
-            self.update_profile = True
-            self.poly.installprofile()
-        LOGGER.info('check_profile: update_profile={}'.format(self.update_profile))
-        cdata['profile_info'] = self.profile_info
-        self.saveCustomData(cdata)
-
-    def install_profile(self,command):
-        LOGGER.info("install_profile:")
-        self.poly.installprofile()
-       
     id = 'controller'
     commands = {
         'QUERY': query,
         'DISCOVER': discover,
-        'INSTALL_PROFILE': install_profile
     }
     drivers = [{'driver': 'ST', 'value': 1, 'uom': 2}]
 
-class Spa(polyinterface.Node):
+class Spa(udi_interface.Node):
 
-    def __init__(self, controller, primary, address, name, host):
+    def __init__(self, polyglot, primary, address, name, host):
 
-        super(Spa, self).__init__(controller, primary, address, name)
+        super(Spa, self).__init__(polyglot, primary, address, name)
         self.queryON = True
         self.host = host
+        polyglot.subscribe(polyglot.POLL, self.update)
 
     def start(self):
         self.update()
@@ -157,8 +148,9 @@ class Spa(polyinterface.Node):
         asyncio.run(self._setLight(int(command.get('value'))))
         self.setDriver('GV5', int(command.get('value')))
                         
-    def update(self):
-        asyncio.run(self._getSpaStatus())
+    def update(self, pollflag):
+        if 'shortPoll' in pollflag:
+            asyncio.run(self._getSpaStatus())
             
     def query(self):
         self.reportDrivers()
@@ -287,9 +279,9 @@ class Spa(polyinterface.Node):
 
 if __name__ == "__main__":
     try:
-        polyglot = polyinterface.Interface('SpaNodeServer')
+        polyglot = udi_interface.Interface([])
         polyglot.start()
-        control = Controller(polyglot)
-        control.runForever()
+        Controller(polyglot, 'controller', 'controller', 'SpaNodeServer')
+        polyglot.runForever()
     except (KeyboardInterrupt, SystemExit):
         sys.exit(0)
